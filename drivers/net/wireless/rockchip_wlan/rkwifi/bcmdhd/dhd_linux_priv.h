@@ -504,10 +504,10 @@ extern uint fis_enab;
 #endif /* DHD_SSSR_DUMP */
 
 #ifdef CONFIG_HAS_WAKELOCK
-enum {
-	WAKE_LOCK_SUSPEND, /* Prevent suspend */
-	WAKE_LOCK_TYPE_COUNT
-};
+//enum {
+//	WAKE_LOCK_SUSPEND, /* Prevent suspend */
+//	WAKE_LOCK_TYPE_COUNT
+//};
 #define dhd_wake_lock_init(wakeup_source, type, name)	wakeup_source_add(wakeup_source)
 #define dhd_wake_lock_destroy(wakeup_source)		wakeup_source_remove(wakeup_source)
 #define dhd_wake_lock(wakeup_source)			__pm_stay_awake(wakeup_source)
