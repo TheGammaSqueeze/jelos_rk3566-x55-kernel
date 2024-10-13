@@ -32,6 +32,7 @@
  */
 
 
+#include <linux/usb.h>
 #include "osl.h"
 #include "dbus.h"
 #include <bcmutils.h>
@@ -51,7 +52,7 @@
 #include <sbpcmcia.h>
 #include <bcmnvram.h>
 #include <bcmdevs.h>
-#endif 
+#endif
 
 
 
@@ -59,7 +60,7 @@
 #ifndef VARS_MAX
 #define VARS_MAX            8192
 #endif
-#endif 
+#endif
 
 #ifdef DBUS_USB_LOOPBACK
 extern bool is_loopback_pkt(void *buf);
@@ -621,7 +622,7 @@ dbus_get_fw_nvram(dhd_bus_t *dhd_bus, char *pfw_path, char *pnv_path)
 	/* For Get nvram */
 	file_exists = ((pnv_path != NULL) && (pnv_path[0] != '\0'));
 	if (file_exists) {
-		nv_image = dhd_os_open_image(pnv_path);
+		nv_image = dhd_os_open_image1(dhd_bus->dhd, pnv_path);
 		if (nv_image == NULL) {
 			printf("%s: Open nvram file failed %s\n", __FUNCTION__, pnv_path);
 			goto err;
@@ -646,14 +647,14 @@ dbus_get_fw_nvram(dhd_bus_t *dhd_bus, char *pfw_path, char *pnv_path)
 		goto err;
 	}
 	if (nv_image) {
-		dhd_os_close_image(nv_image);
+		dhd_os_close_image1(dhd_bus->dhd, nv_image);
 		nv_image = NULL;
 	}
 
 	/* For Get first block of fw to calculate total_len */
 	file_exists = ((pfw_path != NULL) && (pfw_path[0] != '\0'));
 	if (file_exists) {
-		fw_image = dhd_os_open_image(pfw_path);
+		fw_image = dhd_os_open_image1(dhd_bus->dhd, pfw_path);
 		if (fw_image == NULL) {
 			printf("%s: Open fw file failed %s\n", __FUNCTION__, pfw_path);
 			goto err;
@@ -672,10 +673,15 @@ dbus_get_fw_nvram(dhd_bus_t *dhd_bus, char *pfw_path, char *pnv_path)
 	}
 
 	total_len = actual_fwlen + dhd_bus->nvram_len + nvram_words_pad;
+#if defined(CONFIG_DHD_USE_STATIC_BUF)
+	dhd_bus->image = (uint8*)DHD_OS_PREALLOC(dhd_bus->dhd,
+		DHD_PREALLOC_MEMDUMP_RAM, total_len);
+#else
 	dhd_bus->image = MALLOC(dhd_bus->pub.osh, total_len);
+#endif /* CONFIG_DHD_USE_STATIC_BUF */
 	dhd_bus->image_len = total_len;
 	if (dhd_bus->image == NULL) {
-		DBUSERR(("%s: malloc failed!\n", __FUNCTION__));
+		DBUSERR(("%s: malloc failed! size=%d\n", __FUNCTION__, total_len));
 		goto err;
 	}
 
@@ -730,11 +736,11 @@ err:
 	if (fw_memblock)
 		MFREE(dhd_bus->pub.osh, fw_memblock, MAX_NVRAMBUF_SIZE);
 	if (fw_image)
-		dhd_os_close_image(fw_image);
+		dhd_os_close_image1(dhd_bus->dhd, fw_image);
 	if (nv_memblock)
 		MFREE(dhd_bus->pub.osh, nv_memblock, MAX_NVRAMBUF_SIZE);
 	if (nv_image)
-		dhd_os_close_image(nv_image);
+		dhd_os_close_image1(dhd_bus->dhd, nv_image);
 
 	return bcmerror;
 }
@@ -764,7 +770,11 @@ dbus_do_download(dhd_bus_t *dhd_bus, char *pfw_path, char *pnv_path)
 		err = DBUS_ERR;
 
 	if (dhd_bus->image) {
+#if defined(CONFIG_DHD_USE_STATIC_BUF)
+		DHD_OS_PREFREE(dhd_bus->dhd, dhd_bus->image, dhd_bus->image_len);
+#else
 		MFREE(dhd_bus->pub.osh, dhd_bus->image, dhd_bus->image_len);
+#endif /* CONFIG_DHD_USE_STATIC_BUF */
 		dhd_bus->image = NULL;
 		dhd_bus->image_len = 0;
 	}
@@ -934,7 +944,7 @@ dbus_do_download(dhd_bus_t *dhd_bus)
 		DBUS_FIRMWARE, 0, 0);
 	if (!dhd_bus->firmware)
 		return DBUS_ERR;
-#endif 
+#endif
 
 	dhd_bus->image = dhd_bus->fw;
 	dhd_bus->image_len = (uint32)dhd_bus->fwlen;
@@ -1055,7 +1065,7 @@ dbus_if_send_irb_timeout(void *handle, dbus_irb_tx_t *txirb)
  * When lower DBUS level signals that a send IRB completed, either successful or not, the higher
  * level (e.g. dhd_linux.c) has to be notified, and transmit flow control has to be evaluated.
  */
-static void BCMFASTPATH
+static void
 dbus_if_send_irb_complete(void *handle, dbus_irb_tx_t *txirb, int status)
 {
 	dhd_bus_t *dhd_bus = (dhd_bus_t *) handle;
@@ -1126,7 +1136,7 @@ dbus_if_send_irb_complete(void *handle, dbus_irb_tx_t *txirb, int status)
  * level (e.g. dhd_linux.c) has to be notified, and fresh free receive IRBs may have to be given
  * to lower levels.
  */
-static void BCMFASTPATH
+static void
 dbus_if_recv_irb_complete(void *handle, dbus_irb_rx_t *rxirb, int status)
 {
 	dhd_bus_t *dhd_bus = (dhd_bus_t *) handle;
@@ -1510,7 +1520,7 @@ dbus_attach(osl_t *osh, int rxsize, int nrxq, int ntxq, dhd_pub_t *pub,
 			dhd_bus->extdl.varslen = extdl->varslen;
 		}
 	}
-#endif 
+#endif
 
 	return (dhd_bus_t *)dhd_bus;
 
@@ -1616,7 +1626,7 @@ int dbus_download_firmware(dhd_bus_t *pub, char *pfw_path, char *pnv_path)
 
 	return err;
 }
-#endif 
+#endif
 
 /**
  * higher layer requests us to 'up' the interface to the dongle. Prerequisite is that firmware (not
@@ -2316,7 +2326,7 @@ uint16 boardtype, uint16 boardrev, int8 **nvram, int *nvram_len)
 	return DBUS_JUMBO_NOMATCH;
 } /* dbus_select_nvram */
 
-#endif 
+#endif
 
 #define DBUS_NRXQ	50
 #define DBUS_NTXQ	100
@@ -2342,8 +2352,9 @@ dhd_dbus_send_complete(void *handle, void *info, int status)
 	if (DHD_PKTTAG_WLFCPKT(PKTTAG(pkt)) &&
 		(dhd_wlfc_txcomplete(dhd, pkt, status == 0) != WLFC_UNSUPPORTED)) {
 		return;
-	}
+	} else
 #endif /* PROP_TXSTATUS */
+	dhd_txcomplete(dhd, pkt, status == 0);
 	PKTFREE(dhd->osh, pkt, TRUE);
 }
 
@@ -2563,6 +2574,19 @@ dhd_bus_chiprev(struct dhd_bus *bus)
 	return bus->pub.attrib.chiprev;
 }
 
+struct device *
+dhd_bus_to_dev(struct dhd_bus *bus)
+{
+	struct usb_device *pdev;
+
+	pdev = (struct usb_device *)bus->pub.dev_info;
+
+	if (pdev)
+		return &pdev->dev;
+	else
+		return NULL;
+}
+
 void
 dhd_bus_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf)
 {
@@ -2672,7 +2696,7 @@ dhd_bus_devreset(dhd_pub_t *dhdp, uint8 flag)
 #if !defined(IGNORE_ETH0_DOWN)
 				/* Restore flow control  */
 				dhd_txflowcontrol(dhdp, ALL_INTERFACES, OFF);
-#endif 
+#endif
 				dhd_os_wd_timer(dhdp, dhd_watchdog_ms);
 
 				DBUSTRACE(("%s: WLAN ON DONE\n", __FUNCTION__));
@@ -2682,9 +2706,6 @@ dhd_bus_devreset(dhd_pub_t *dhdp, uint8 flag)
 		}
 	}
 
-#ifdef PKT_STATICS
-	memset((uint8*) &tx_statics, 0, sizeof(pkt_statics_t));
-#endif
 	return bcmerror;
 }
 
@@ -2704,7 +2725,7 @@ dhd_bus_update_fw_nv_path(struct dhd_bus *bus, char *pfw_path,
 	bus->dhd->clm_path = pclm_path;
 	bus->dhd->conf_path = pconf_path;
 
-	dhd_conf_set_path_params(bus->dhd, NULL, bus->fw_path, bus->nv_path);
+	dhd_conf_set_path_params(bus->dhd, bus->fw_path, bus->nv_path);
 
 }
 
@@ -2781,9 +2802,10 @@ dhd_dbus_probe_cb(void *arg, const char *desc, uint32 bustype,
 	}
 
 	if (!g_pub) {
-		/* Ok, finish the attach to the OS network interface */
-		if (dhd_register_if(pub, 0, TRUE) != 0) {
-			DBUSERR(("%s: dhd_register_if failed\n", __FUNCTION__));
+		/* Ok, have the per-port tell the stack we're open for business */
+		if (dhd_attach_net(bus->dhd, TRUE) != 0)
+		{
+			DBUSERR(("%s: Net attach failed!!\n", __FUNCTION__));
 			goto fail;
 		}
 		pub->hang_report  = TRUE;

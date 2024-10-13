@@ -1032,9 +1032,6 @@ endif
 endif
 
 ########### END OF PATH  #################################
-+EXTRA_CFLAGS += -DDBG_IO
-#WIFIDBG
-EXTRA_CFLAGS += -DDBG_C2H_MAC_HIDDEN_RPT_HANDLE
 
 ifeq ($(CONFIG_AP_MODE), y)
 EXTRA_CFLAGS += -DCONFIG_AP_MODE
