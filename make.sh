@@ -1,6 +1,6 @@
-export CROSS_COMPILE=aarch64-linux-gnu- && make ARCH=arm64 x55_android_defconfig && make ARCH=arm64 KERNEL_DTS=rk3566 KERNEL_CONFIG=x55_android_defconfig -j$(nproc)
-export CROSS_COMPILE=aarch64-linux-gnu- && make ARCH=arm64 x55_android_defconfig && make ARCH=arm64 KERNEL_DTS=rk3566 KERNEL_CONFIG=x55_android_defconfig modules -j$(nproc)
-export CROSS_COMPILE=aarch64-linux-gnu- && make ARCH=arm64 x55_android_defconfig && make ARCH=arm64 KERNEL_DTS=rk3566 KERNEL_CONFIG=x55_android_defconfig modules_install -j$(nproc)
+export CROSS_COMPILE=aarch64-linux-gnu- && make ARCH=arm64 bubble_android_defconfig && make ARCH=arm64 KERNEL_DTS=rk3566 KERNEL_CONFIG=bubble_android_defconfig -j$(nproc)
+export CROSS_COMPILE=aarch64-linux-gnu- && make ARCH=arm64 bubble_android_defconfig && make ARCH=arm64 KERNEL_DTS=rk3566 KERNEL_CONFIG=bubble_android_defconfig modules -j$(nproc)
+export CROSS_COMPILE=aarch64-linux-gnu- && make ARCH=arm64 bubble_android_defconfig && make ARCH=arm64 KERNEL_DTS=rk3566 KERNEL_CONFIG=bubble_android_defconfig modules_install -j$(nproc)
 mkdir -p modules
 cp drivers/media/usb/gspca/gspca_main.ko modules/
 #cp drivers/net/wireless/rockchip_wlan/rkwifi/bcmdhd/bcmdhd.ko modules/
