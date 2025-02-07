@@ -63,3 +63,5 @@ obj-$(CONFIG_UID_SYS_STATS)	+= uid_sys_stats.o
 obj-$(CONFIG_PIR_ASCHIP)	+= pir-aschip.o
 obj-$(CONFIG_RK803)		+= rk803.o
 obj-$(CONFIG_ZED_GPIO_CONTROL) += gpio_control.o
+obj-y				+= timed_output.o
+obj-y                           += timed_gpio.o
